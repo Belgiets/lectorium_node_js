@@ -21,24 +21,21 @@ const server = http.createServer((req, res) => {
   if (pathname.includes('/echo-query/')) {
     let parts = pathname.split("/");
     content = parts[2]
-  } else if (pathname.includes('/files')) {
-    headers = [
-      ['Content-Type', 'text/html; charset=utf-8']
-    ]
 
-    // fs.readFile("AppPages/MyPage.html", function (error, pgResp) {
-    //   if (error) {
-    //     resp.writeHead(404);
-    //     resp.write('Contents you are looking are Not Found');
-    //   } else {
-    //     resp.writeHead(200, { 'Content-Type': 'text/html' });
-    //     resp.write(pgResp);
-    //   }
-    //
-    //   resp.end();
+    res.statusCode = statusCode
+    headers.forEach(header => res.setHeader(header[0], header[1]));
+    res.end(content)
+  } else if (pathname.includes('/files')) {
+    let filePath = path.join(__dirname, 'data/index.html')
+    let stat = fs.statSync(filePath);
+
+    // res.writeHead(200, {
+    //   "Content-Type": "text/html",
+    //   "Content-Disposition": stat.size
     // });
 
-    content = '<audio controls><source src="' + path.basename('data/mysong.mp3') + '" type="audio/mp3"></audio>'
+    let readStream = fs.createReadStream(filePath);
+    readStream.pipe(res);
   } else {
     switch (pathname) {
       case '/':
@@ -64,11 +61,11 @@ const server = http.createServer((req, res) => {
         statusCode = 404
         content = 'Not Found'
     }
-  }
 
-  res.statusCode = statusCode
-  headers.forEach(header => res.setHeader(header[0], header[1]));
-  res.end(content)
+    res.statusCode = statusCode
+    headers.forEach(header => res.setHeader(header[0], header[1]));
+    res.end(content)
+  }
 })
 
 server.listen(port, hostname, () => {
