@@ -12,63 +12,55 @@ const server = http.createServer((req, res) => {
   // let query = url.parse(req.url).query
   // let q = querystring.parse(query)
 
-  let statusCode = 200
-  let headers = [
-    ['Content-Type', 'text/plain; charset=utf-8']
-  ]
-  let content = ''
+  if (pathname.includes('/files')) {
+    fs.readFile('data/index.html', (err, data) => {
+      if (err) throw err;
 
-  if (pathname.includes('/echo-query/')) {
-    let parts = pathname.split("/");
-    content = parts[2]
-  } else if (pathname.includes('/files')) {
-    headers = [
-      ['Content-Type', 'text/html; charset=utf-8']
-    ]
+      res.writeHead(200, { 'Content-Type': 'text/html' });
 
-    // fs.readFile("AppPages/MyPage.html", function (error, pgResp) {
-    //   if (error) {
-    //     resp.writeHead(404);
-    //     resp.write('Contents you are looking are Not Found');
-    //   } else {
-    //     resp.writeHead(200, { 'Content-Type': 'text/html' });
-    //     resp.write(pgResp);
-    //   }
-    //
-    //   resp.end();
-    // });
-
-    content = '<audio controls><source src="' + path.basename('data/mysong.mp3') + '" type="audio/mp3"></audio>'
+      res.end(data)
+    });
   } else {
-    switch (pathname) {
-      case '/':
-        content = 'Hello, World!'
-        break
-      case '/ping':
-        break
-      case '/locale':
-        content = 'Привіт, Світ!'
-        break
-      case '/echo-data':
-        content = 'Привіт, Світ!'
-        break
-      case '/address':
-        content = req.headers.host
+    let statusCode = 200
+    let headers = [
+      ['Content-Type', 'text/plain; charset=utf-8']
+    ]
+    let content = ''
 
-        break
-      case '/errors':
-        statusCode = 500
-        content = 'Server Error'
-        break
-      default:
-        statusCode = 404
-        content = 'Not Found'
+    if (pathname.includes('/echo-query/')) {
+      let parts = pathname.split("/");
+      content = parts[2]
+    } else {
+      switch (pathname) {
+        case '/':
+          content = 'Hello, World!'
+          break
+        case '/ping':
+          break
+        case '/locale':
+          content = 'Привіт, Світ!'
+          break
+        case '/echo-data':
+          content = 'Привіт, Світ!'
+          break
+        case '/address':
+          content = req.headers.host
+
+          break
+        case '/errors':
+          statusCode = 500
+          content = 'Server Error'
+          break
+        default:
+          statusCode = 404
+          content = 'Not Found'
+      }
     }
-  }
 
-  res.statusCode = statusCode
-  headers.forEach(header => res.setHeader(header[0], header[1]));
-  res.end(content)
+    res.statusCode = statusCode
+    headers.forEach(header => res.setHeader(header[0], header[1]));
+    res.end(content)
+  }
 })
 
 server.listen(port, hostname, () => {
