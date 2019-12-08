@@ -13,13 +13,63 @@ const server = http.createServer((req, res) => {
   // let q = querystring.parse(query)
 
   if (pathname.includes('/files')) {
-    fs.readFile('data/index.html', (err, data) => {
-      if (err) throw err;
+    let filesUrlParts = pathname.split("/files")
+    let filePath = 'data'
 
-      res.writeHead(200, { 'Content-Type': 'text/html' });
+    if (filesUrlParts[1] === '' || filesUrlParts[1] === '/') {
+      filePath += '/index.html'
+    } else {
+      filePath += filesUrlParts[1]
+    }
 
-      res.end(data)
-    });
+    switch (path.extname(filePath)) {
+      case '.mp3':
+      case '.mp4':
+        try {
+          let stat = fs.statSync(filePath);
+
+          res.writeHead(200, {
+            'Content-Type': 'audio/mpeg',
+            'Content-Length': stat.size
+          });
+
+          let readStream = fs.createReadStream(filePath);
+          readStream.pipe(res);
+        } catch (e) {
+          res.writeHead(404, { 'Content-Type': 'text/plain' });
+          res.end('Not Found')
+        }
+
+        break;
+      default:
+        fs.readFile(filePath, (err, data) => {
+          if (err) {
+            res.writeHead(404, { 'Content-Type': 'text/plain' });
+            res.end('Not Found')
+          }
+
+          res.writeHead(200, { 'Content-Type': 'text/html' });
+          res.end(data)
+        });
+    }
+
+  } else if (pathname.includes('/echo-data')) {
+    if (req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => {
+        body += chunk.toString();
+      });
+      req.on('end', () => {
+        if ('content-type' in req.headers && req.headers['content-type'] === 'application/json') {
+          res.setHeader('Content-type', 'application/json')
+        }
+
+        res.end(body);
+      });
+    } else {
+      res.statusCode = 405
+      res.end('Method not allowed')
+    }
   } else {
     let statusCode = 200
     let headers = [
@@ -38,9 +88,6 @@ const server = http.createServer((req, res) => {
         case '/ping':
           break
         case '/locale':
-          content = 'Привіт, Світ!'
-          break
-        case '/echo-data':
           content = 'Привіт, Світ!'
           break
         case '/address':
