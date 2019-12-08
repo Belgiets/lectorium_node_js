@@ -3,14 +3,15 @@ const url = require('url')
 const querystring = require('querystring')
 const path = require('path')
 const fs = require('fs');
+const zlib = require('zlib');
 
 const hostname = '127.0.0.1'
 const port = 3000
 
 const server = http.createServer((req, res) => {
   let pathname = url.parse(req.url).pathname
-  // let query = url.parse(req.url).query
-  // let q = querystring.parse(query)
+  let query = url.parse(req.url).query
+  let queryParams = querystring.parse(query)
 
   if (pathname.includes('/files')) {
     let filesUrlParts = pathname.split("/files")
@@ -22,37 +23,64 @@ const server = http.createServer((req, res) => {
       filePath += filesUrlParts[1]
     }
 
-    switch (path.extname(filePath)) {
-      case '.mp3':
-      case '.mp4':
-        try {
-          let stat = fs.statSync(filePath);
+    if (queryParams.download === '1') {
+      let file = fs.createReadStream(filePath);
+      let fileName = queryParams.filename ? queryParams.filename : path.basename(filePath);
 
-          res.writeHead(200, {
-            'Content-Type': 'audio/mpeg',
-            'Content-Length': stat.size
-          });
+      if (queryParams.compress === '1') {
+        res.writeHead(200, {
+          'Content-disposition': 'attachment; filename=' + fileName + '.gz'
+        })
 
-          let readStream = fs.createReadStream(filePath);
-          readStream.pipe(res);
-        } catch (e) {
-          res.writeHead(404, { 'Content-Type': 'text/plain' });
-          res.end('Not Found')
-        }
-
-        break;
-      default:
-        fs.readFile(filePath, (err, data) => {
+        fs.access(filePath + '.gz', fs.constants.F_OK, (err) => {
           if (err) {
+            file
+              .pipe(zlib.createGzip())
+              .on('data', () => process.stdout.write('.'))
+              .pipe(fs.createWriteStream(filePath + '.gz'))
+              .on('finish', () => {
+                res.end()
+              })
+          } else {
+            fs.createReadStream(filePath + '.gz').pipe(res)
+          }
+        });
+      } else {
+        res.writeHead(200, {'Content-disposition': 'attachment; filename=' + fileName})
+        file.pipe(res)
+      }
+    } else {
+      switch (path.extname(filePath)) {
+        case '.mp3':
+        case '.mp4':
+          try {
+            let stat = fs.statSync(filePath);
+
+            res.writeHead(200, {
+              'Content-Type': 'audio/mpeg',
+              'Content-Length': stat.size
+            });
+
+            let readStream = fs.createReadStream(filePath);
+            readStream.pipe(res);
+          } catch (e) {
             res.writeHead(404, { 'Content-Type': 'text/plain' });
             res.end('Not Found')
           }
 
-          res.writeHead(200, { 'Content-Type': 'text/html' });
-          res.end(data)
-        });
-    }
+          break;
+        default:
+          fs.readFile(filePath, (err, data) => {
+            if (err) {
+              res.writeHead(404, { 'Content-Type': 'text/plain' });
+              res.end('Not Found')
+            }
 
+            res.writeHead(200, { 'Content-Type': 'text/html' });
+            res.end(data)
+          });
+      }
+    }
   } else if (pathname.includes('/echo-data')) {
     if (req.method === 'POST') {
       let body = '';
